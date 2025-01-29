@@ -1,0 +1,94 @@
+<~runxiyu> hax[xor]: idea for timezone stuff:
+<~runxiyu> all time is represented by a single monotomically-incrementing counter
+<~runxiyu> it does not care about whether leap seconds exist. it just goes up every atomic-clock second
+<~runxiyu> hax[xor]: each 'timezone' is just a function that converts that to human-readable time
+<&hax[xor]> by which you mean it cares about leap seconds since basically nobody has an atomic clock to use
+<~runxiyu> we use NTP, right?
+<~runxiyu> wait lemme go bathroom
+<&hax[xor]> you still have to deal with time going forwards/backwards with NTP too
+<&hax[xor]> but, yes, after NTP you only have to care about converting it to human time
+<&hax[xor]> at NTP you're dealing with leap seconds and such
+<~runxiyu> everything that the computer cares about is a monotonically increasing number, leap seconds only exist insofar as the convert-to-human-time process runs
+<~runxiyu> now, this has a problem:
+<&hax[xor]> am I getting leap seconds backwards or something?
+<~runxiyu> humans like to say "i would like to meet my doctor at 2026-04-11 10:30:00 +0000", not "i would like to meet my doctor at t=1738294721321"
+<~runxiyu> uhhhhhhh "let me try to explain it again later"
+<~runxiyu> in most cases, all the computer knows is monotonically increasing time, represented by some sort of number (probably an integer because floating point is insane). every second that goes past in the appropriate reference frame, the number goes up by 1 (or 1000 if the number is counting in milliseconds, etc). 
+<~runxiyu> since we cannot predict leap seconds in the far future, we are not exactly sure what human-time a given time-number in the future, corresponds to
+<~runxiyu> there are functions that convert human-time to time-number and vice versa, and these functions are occasionally updated, when leap seconds are introduced, timezones change, et
+<~runxiyu> c
+<~runxiyu> i'm not sure how well this deals with relativistic scenarios but i suspect it'll hold up
+<~runxiyu> at least, it should hold up no worse than current systems
+<&hax[xor]> hmmm yes I was misinterpreting leap seconds
+<&hax[xor]> I'd just get rid of leap seconds as a thing :P
+<&hax[xor]> blame UTC
+<~runxiyu> hax[xor]: they are trying to get rid of it
+<&hax[xor]> good
+<~runxiyu> but that's not something in our control
+<&hax[xor]> once that's done this problem will be solved for us, then
+<&hax[xor]> yep
+<&hax[xor]> until then you can just ignore it and get UTC over NTP?
+<~runxiyu> if there are changes in the future that ressurect leap seconds (which are, ofc, not in our control), the best solution imo is still "we count in atomic seconds, and if they introduce leap seconds we'll just modify the convert-to-human-time algorithms a little"
+<~runxiyu> hax[xor]: are you sure that you understand UTC vs IAT
+<~runxiyu> another attempt to illustrate this
+<~runxiyu>    
+<~runxiyu> UTC-human    UTC-integer  IAT-integer number-of-times-your-cesium-atom-vibrated
+<~runxiyu> 23:59:58     1            1           9,192,631,770
+<~runxiyu> 23:59:59     2            2           9,192,631,770 * 2
+<~runxiyu> 23:59:60     2            3           9,192,631,770 * 3      (this is a leap second)
+<~runxiyu> 00:00:00     3            4           9,192,631,770 * 4
+<~runxiyu> I propose we use IAT-integer to record time in computers internally
+<&hax[xor]> runxiyu: I propose using human time for computers and just letting it go like that
+<&hax[xor]> the only thing that has to deal with leap seconds *that* way is ntp-fetching-time-from-an-atomic-clock
+<&hax[xor]> it continues to work fine even if humans want to adjust the duration of a second, etc etc
+<~runxiyu> so your time goes like 1 1.1 1.2 ... 1.9 2.0 2.1 2.2 2.3 ... 2.9 2.0 2.1 2.2 2.3 2.4 ... 2.9 3.0
+<~runxiyu> that's insane
+<&hax[xor]> runxiyu: it's no different from ntp telling you that your internal clock was running fast
+<~runxiyu> that's also an issue, and i'm not sure how that's fixed
+<&hax[xor]> that's literally impossible to fix
+<&hax[xor]> ntp time *may* go backwards, due to internet latency changes
+<~runxiyu> google uses this fix for both leap seconds and ntp:
+<~runxiyu> it smudges the entire day around leap seconds or bad ntp updates
+<~runxiyu> s/bad/discontinuous/
+<&hax[xor]> yes, exactly how ntp corrects small changes normally
+<&hax[xor]> it just mixes it in over a long duration
+<&hax[xor]> for both increase and decrease
+<&hax[xor]> or rather
+<&hax[xor]> how normal ntp implementations apply it anyways
+<~runxiyu> still annoying idk
+<~runxiyu> "will think later"
+<~runxiyu> "just use GPS time" :D:D:D
+<~runxiyu> hax[xor]: also, using UTC-integer/UTC-human could have more issues if people decide to change calendars
+<~runxiyu> clocks get a month out of sync? good luck smudging that
+<&hax[xor]> runxiyu: no, not really
+<&hax[xor]> people aren't going to select a new calander that uses the same months but rotated one, and *if* they do you deal with it like timezones
+<&hax[xor]> you're counting human-seconds-since-$start
+<~runxiyu> another issue with utc-integer when there are leap seconds: when different systems exchange information that contain time, there's no guarantee of monotonicty which causes all sorts of issues
+<&hax[xor]> sure there is
+<&hax[xor]> you smudge it thoroughly
+<&hax[xor]> there's no guarantee they all run at the same rate, but that's already a voided guarantee
+<&hax[xor]> outside of special applications like a bunch of computers having their own atomic clock and fixed latencies in their communication etc etc...
+<~runxiyu> ehhhh
+<&hax[xor]> (and for those you use a slightly different method and it all works out fine)
+<&hax[xor]> alternatively, look at it this way:
+<&hax[xor]> stuff running off an atomic clock would have to smudge in leap seconds
+<&hax[xor]> *if* they wish to ntp/whatever
+<&hax[xor]> which is substantially better than "everything has to deal with non-monotonic leapseconds with humantime"
+<&hax[xor]> or if you attempt to make that monotonic by smudging, "making literally everything smudge the seconds when it wants to deal with humantime instead of just stuff that wishes to deal with humantime and atomic clocks"
+<~runxiyu> smudging is horrible for things that kinda need accurate timing (e.g. robots that move with motors, w/e)
+<&hax[xor]> are they dealing with ntp?
+<~runxiyu> no
+<~runxiyu> usualy not
+<&hax[xor]> then there's no problem with my scheme either
+<~runxiyu> but perhaps so, my raspberry pi used ntp when controlling a robot
+<&hax[xor]> and if they are: then you already have a smudging problem thanks to ntp, whether or not that ntp server does smudging
+<~runxiyu>  we should have a bot that could record conversations like this and put them in a repo
+<&hax[xor]> (or, worse, sudden leaps in your robot's timing)
+<~runxiyu> true
+<~runxiyu> hmmmm
+<&hax[xor]> also note
+<&hax[xor]> my scheme neither affects stuff with its own impercise clock, nor things with an atomic clock that doesn't want to use humantime
+<&hax[xor]> really, with a robot, you probably want to be using exclusively the internal clock
+<~runxiyu> do your atomic clock satelites ever have to communicate with ground control?
+<&hax[xor]> not whatever system time scheme is in place
+<&hax[xor]> depends on the satelites?
