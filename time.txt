@@ -92,3 +92,9 @@
 <~runxiyu> do your atomic clock satelites ever have to communicate with ground control?
 <&hax[xor]> not whatever system time scheme is in place
 <&hax[xor]> depends on the satelites?
+<&hax[xor]> and, really, those are just a case of "doesn't deal with humantime"
+<&hax[xor]> not internally anyways
+<&hax[xor]> hmmm
+<~runxiyu> hmmm
+<~runxiyu> hax[xor]: copying chat log to git.rx:chatlogs.git
+<&hax[xor]> "if they do it's just a case of atomic clock + humantime -> smudge the timings. have an internal-clock-only available for 'steady timings' that is neither smudged nor jumps. in the case of imprecise clocks this MAY be smudged slightly by external effects on the timing device"
