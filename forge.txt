@@ -1,0 +1,221 @@
+<runxiyu> hax[xor]: Noisybeep: f_: luk3yx: https://lindenii.runxiyu.org/forge/
+<hax[xor]> s/PR/MR/, as some forges do, seems more reasonable terms to me
+<hax[xor]> or is PR an actual git term?
+<hax[xor]> Anonymous SSH read access should be possible for public repos. All other Git access should be done via SSH public keys. Custom SSH server implementation necessary due to OpenSSH limitations.
+<hax[xor]> I’m not sure how authentication should work in the API. I do not want to use OAuth 2.0.
+<hax[xor]> ...but you're already using ssh public keys for auth...
+<hax[xor]> ssh git@<host> for normal git usage, ssh user@<host> gives you a nice TUI/CLI user config thing?
+<runxiyu> i would like there to be an API (probably not HTTP bloat) too, e.g. to download issues offline
+<runxiyu> and to have a TUI/GUI/CLI that runs on the users computer
+<runxiyu> hax[xor]: mainly looking for feedback on how MRs should work
+<runxiyu> hax[xor]: Actually, instead of using SSH keys, what about TLS client certificates?
+<runxiyu> actually... idk, https makes a tiny bit of sense for stateless-ish requests
+<runxiyu> but meh
+<runxiyu> ssh has large overhead...
+<runxiyu> hax[xor]: Okay :D  TLS client certs, vs SSH keys over TLS
+<hax[xor]> runxiyu: why does ssh have such a large overhead? due to openssh stuff?
+<runxiyu> hax[xor]: SSH handshakes are very complex
+<runxiyu> Protocol reasons, not implementation reasons
+<runxiyu> OpenSSH makes it slightly slower because of its weird privilege separation model
+<hax[xor]> well then if you're going to be using TLS anyways, tls client certs it is
+<hax[xor]> but ssh server auth is far better than normal tls :P
+<hax[xor]> (though it shouldn't be "hard" to correct it, it's nearly impossible to correct it in current clients)
+<hax[xor]> assuming your plan is tls via https instead of creating your own tls-using git protocol
+<f_> runxiyu: I believe in email patches
+<runxiyu> hax[xor]: Also, on HTTP web UI authentication which is very fun: Login interface, enter password / use single sign-on somehow, etc -> issue cookie -> should I remember the cookie in the DB, or should I sign the cookie containing the username and expiry date (so I don't need to query the db on every request)?
+<hax[xor]> runxiyu: I like keeping it simple. connection: keep-alive. no cookies required.
+<runxiyu> hax[xor]: Do you want to relog to Codeberg every time you re-open your browser?
+<hax[xor]> runxiyu: yes
+<hax[xor]> runxiyu: cookies opens a whole new line of auth leaks anyways
+<runxiyu> Uhhh that could be an option too, but most users probably don't want to relog every time
+<hax[xor]> also, use tls client certs :P :P :P
+<runxiyu> hax[xor]: I'm sure your browser supports them properly
+<runxiyu> :D:D:D
+<hax[xor]> browsers suck anyways, use a proper interface :P :P
+<runxiyu> hax[xor]: Sorry, but I want this to have a usable Web interface; there will be a proper interface in the future™ though
+<runxiyu> hax[xor]: Anyways, I could add a 'Use cookies to stay logged in' checkbox that you don't have to click
+<hax[xor]> sorry, but "usable" and "web interface" don't belong together. :P :P :P
+<hax[xor]> yeah that's be good
+<hax[xor]> also people like me don't have their browsers keep cookies after a restart anyways, so no difference in login duration :P
+<hax[xor]> (which is also amusing with all the cookie consent popups all over the web)
+<f_> runxiyu: I'm convinced email patches can be handled a lot better than it currently is.
+<runxiyu> f_: hwo do you suggest so?
+<f_> Well, SourceHut was a slight bit close
+<runxiyu> meh
+<hax[xor]> "yes I consent to have these cookies not actually be stored on my computer since they're just getting trashed shortly anyways" :P
+<runxiyu> also, I'm thinking of an IMAP/JMAP interface to mailed patch archives
+<f_> I think maybe GitLab/SourceHut workflow merger thing?
+<runxiyu> hax[xor]: I drop cookies for most sites, but keep them for some
+<hax[xor]> fair
+<runxiyu> f_: I'm not sure how GitLab works
+<f_> see e.g. this https://gitlab.postmarketos.org/postmarketOS/pmaports/-/merge_requests/6099 or https://gitlab.postmarketos.org/postmarketOS/pmaports/-/merge_requests/4995
+<f_> Sure some of GitLab I'm not very happy with
+<f_> but I'm convinced someone could take the good bits of GitLab, the good bits of SourceHut, and merge them together
+<f_> See also threads etc
+<runxiyu> f_: Have you read my document in detail?
+<runxiyu> f_: Basically, on-the-fly translation between a mailing list and merge request interfaces
+<hax[xor]> runxiyu: on a side note, I don't like "subsidiary repo"s existing at all
+<runxiyu> hax[xor]: should MRs store patches instead?
+<runxiyu> or sould it be a special branch in the primar yrepo
+<hax[xor]> that or you can abuse e.g. branches
+<runxiyu> I'll probably go with branches
+<hax[xor]> yeah they have the advantage of being trivially tracked from clones too without having to leave git
+<hax[xor]> s/tracked/accessed/
+<runxiyu> though that also means some branch names will be disallowed from normal use (which isn't a big deal for my ase)
+<hax[xor]> yeah
+<runxiyu> hax[xor]: well, should those branches be deleted once merged into master?
+<hax[xor]> is there any need to keep them around?
+<f_> runxiyu: you mean, a ML patch will get translated to a merge request and vice-versa?
+<runxiyu> not sure, probably not imo
+<hax[xor]> and what kind of space difference would it make?
+<runxiyu> f_: yes
+<f_> that ought to get a little bit messy :S
+<runxiyu> hax[xor]: i don't exactly want to download a thousand refs when cloning a repo, even if it doesn't make a huge space difference
+<runxiyu> f_: we'll see :)
+<hax[xor]> fair (but that's also a git issue isn't it)
+<hax[xor]> well, yeah fair
+<runxiyu> hax[xor], f_: Also I want to be able to have people (who may not have write access to the repo!) do 'git clone forge:x; cd x; edit stuff; git commit stuff; git push -o make_merge_request'... but idk that also gets a bit weird
+<runxiyu> will do that later, not a priority
+<runxiyu> well, actually it is rather important
+<hax[xor]> runxiyu: git branch user/mymergetitle; git push
+<runxiyu> hmmmmm
+<hax[xor]> (adjust to proper git syntax and modifications inbetween)
+<runxiyu> I thinmk it should be git checkout -b instead of git branch
+<hax[xor]> remember you're making your own auth anyways so you can understand that kind of difference
+<runxiyu> Yeah
+<runxiyu> hax[xor]: also this also allows for anonymous contributions (although spam would be an issue potentially)
+<hax[xor]> make it configurable per-repo
+<hax[xor]> or whatever
+<runxiyu> yep
+<runxiyu> or.cz already does this with a 'mob' branch or whatever
+<hax[xor]> also btw
+<hax[xor]> there's no real reason web interfaces couldn't have anonymous stuff either
+<runxiyu> yep
+<runxiyu> well
+<hax[xor]> it'd just be more pain since you have to do to it all in the web interface rather than using git
+<runxiyu> there is a reason in codeberg/github, because they have to 'fork' the repo which goes under their personal namespace
+<hax[xor]> true
+<runxiyu> sourcehut maiiling lists don't require an account to submit patches, obviously
+<hax[xor]> but codeberg/github could have a anonymous pseudouser to inherit them
+<hax[xor]> s/ a a/ an a/
+<hax[xor]> also
+<runxiyu> hax[xor]: also, usually people would want to complete multiple operations (multilpe requests) via the web interface, and connection=keepalive kinda sucks, but in any case you would want to determine the continuity of a client's identity throughout their PR-making process
+<hax[xor]> you could require an account with mailing list stuff too :P
+<runxiyu> hax[xor]: it's more unnatural for that :D
+<runxiyu> like there's nothing in the emailing process that would require that
+<runxiyu> it's harder with codeberg/github setups
+<hax[xor]> not when all your accounts have a single email address asssociated :D
+<hax[xor]> and have a 1:1 mapping between them
+<runxiyu> i mean, mailing lists are patches in email archives, they don't require hosting a forked repo on anywhere etc
+<hax[xor]> ah yeah
+<hax[xor]> and regarding multiple operations: is there any reason keepalive can't do that?
+<hax[xor]> (and temporary cookies could absolutely solve that)
+<hax[xor]> well, doesn't really have to be temporary to be anonymous in the sense of accountless
+<runxiyu> unreliable connections etc etc
+<runxiyu> anyways, git send email is one atomic-ish operation that reads from your current repo and sends it out; git push -o make_mr is one atomic-ish operation that reads from your current repo and sends it out; go to the web interface, click fork, git push to my new fork, make pr from web interface is very convoluted and sucks
+<runxiyu> unreliable connections etc etc
+<runxiyu> anyways, git send email is one atomic-ish operation that reads from your current repo and sends it out; git push -o make_mr is one atomic-ish operation that reads from your current repo and sends it out; go to the web interface, click fork, git push to my new fork, make pr from web interface is very convoluted and sucks and is not one atomic step
+<runxiyu> temporary cookies work, sure
+<runxiyu> yeah
+<runxiyu> ... postgresql advisory locks, interesting ...
+<runxiyu> meh, not useful for me
+<hax[xor]> > git push -o make_mr is one atomic-ish operation that reads from your current repo and sends it out; go to the web interface, click fork, git push to my new fork, make pr from web interface is very convoluted and sucks and is not one atomic step
+<hax[xor]> that's a poor plan anyways
+<hax[xor]> errrrr
+<hax[xor]> > go to the web interface, click fork, git push to my new fork, make pr from web interface is very convoluted and sucks and is not one atomic step
+<runxiyu> yeah, i don't like it
+<hax[xor]> what's with git push -o make_mr
+<hax[xor]> that's not needed via mr-uses-namespaced-branches
+<runxiyu> oh right
+<runxiyu> yeah just pretend that as mr-uses-namespaced-branches
+<hax[xor]> also it sucks if you want to do more than one thing in a single push
+<runxiyu> hax[xor]: also, merge requests often have a cover letter / title / description or something
+<runxiyu> <&hax[xor]> also it sucks if you want to do more than one thing in a single push how
+<hax[xor]> git push -o make_mr -o make_mr -o make_mr -o merge_that_other_thing -o ...
+<hax[xor]> runxiyu: title-via-branch-name
+<hax[xor]> git branch 'hax[xor]/hey runxiyu I fixed your bug!'
+<runxiyu> hax[xor]: i want titles to be able to contain punctuation and spaces
+<hax[xor]> git sucks then
+<hax[xor]> base64 it? lol
+<hax[xor]> (nah)
+<runxiyu> git push -o 'mr_title=Hi Runxi'
+<runxiyu> meh
+<hax[xor]> runxiyu: great, now push two MRs at once
+<runxiyu> hax[xor]: we don't usually use push --all (to push all branches) anyway
+<hax[xor]> true
+<hax[xor]> but I still much prefer MR contexts to be self-contained
+<runxiyu> and since each branch is one MR, sounds like it would work
+<runxiyu> hax[xor]: "MR contexts"?
+<hax[xor]> title, description, etc
+<runxiyu> hax[xor]: You mean, self-contained within the branch name, or the commit descriptions, or...
+<hax[xor]> within git
+<hax[xor]> how it's within git I don't care much
+<hax[xor]> (so long as it's sensible)
+<runxiyu> I mean there is a way out to create a complex merge commit on a separate branch that- ...
+<hax[xor]> commit messges might be useful for it though?
+<hax[xor]> first line -> title, rest -> description, for some dedicated thing
+<runxiyu> hax[xor]: oh, for MRs that need cover letters, let the user make an empty commit that gets trimmed out?
+<runxiyu> still sounds like it sucks
+<hax[xor]> that'd work if it's reasonably doable
+<runxiyu> it's easily doable
+<runxiyu> but doesn't sound like really good UX
+<hax[xor]> then yeah sounds fine
+<runxiyu> well, it's basically
+<runxiyu> c
+<runxiyu> err
+<runxiyu> ---
+<runxiyu> oh wait
+<runxiyu> oh no wait
+<runxiyu> git clone forge@lindenii.org:blah/repos/meh
+<runxiyu> cd meh
+<runxiyu> git checkout -b mr/reformat-files
+<runxiyu> indent -linux *.c
+<runxiyu> git commit *.c -m 'Reformat all C files'
+<runxiyu> gofumpt -w -s *.go
+<runxiyu> git commit *.go -m 'Reformat all Go files'
+<runxiyu> git commit --allow-empty -m 'Reformat files\n\nthe style guide says this and that so here's a patchset that formats everything' # or whatever
+<hax[xor]> sounds fine
+<runxiyu> git push (do i need git push -u origin mr/reformat-files ?)
+<hax[xor]> idr
+<hax[xor]> on a side note
+<runxiyu> hax[xor]: and should the empty commit should be removed during the push handler (with its commit message extracted into the MR database, etc)?
+<hax[xor]> probably
+<runxiyu> alright
+<runxiyu> sounds good
+<hax[xor]> (also cancel side note)
+<runxiyu> hax[xor]: well, a problem:
+<runxiyu> if the server trims that empty commit
+<runxiyu> then the user's local branch has an extra commit
+<hax[xor]> and why is this a problem?
+<hax[xor]> hmmm right a problem for the one doing the merging
+<runxiyu> when the merge_request branch needs updating, there will be issues™ with random empty commits / merge conflicts / etc
+<runxiyu> and yeah
+<hax[xor]> there's no issues until you try to merge it
+<hax[xor]> the empty commit exists on the branch
+<hax[xor]> and it just stays there on that branch
+<hax[xor]> and for everyone except the one doing the merging, it never makes it onto main
+<hax[xor]> for the one doing the merging: maybe there's a better way...
+<runxiyu> hax[xor]: what if the creator of the merge request wants to add a new commit to their MR?
+<runxiyu> and i don't see an issue for the one doing the merging, since the forge's record of the MR branch is clean without the weird empty commit (since we're trimming it out)
+<hax[xor]> well
+<hax[xor]> it is a pain
+<hax[xor]> since I'd like the empty commit to be *first* in the branch's differences
+<hax[xor]> not a problem that way for existing though since server can just remember which was the last at the time of creating or such
+<hax[xor]> or it could just look for any empty commit
+<hax[xor]> runxiyu: no, it's not being trimmed until it's merged
+<runxiyu> hmmmm...
+<runxiyu> uhhhh
+<runxiyu> hax[xor]: we should probably stop trying to apply weird workarounds to git's behavior
+<hax[xor]> yep
+<runxiyu> :(
+<hax[xor]> "we could just let it stay"
+<hax[xor]> (yeah also not really a good solution, still problems with ordering etc...)
+<hax[xor]> "hey we could just trash git and come up with a better versioning scheme" :P :P :P
+<hax[xor]> (preferrably without hashcollisions, [RL]CEs, and other such :P)
+<hax[xor]> "[RL]CEs" in reference to safe-repo stuff
+<runxiyu> tbh, a small git-push-merge-request that basically does git push -o (i think these options can contain arbitrary characters (not null bytes but who cares), and uses a title and decription as the argument)
+<runxiyu> though people would have to download stuff onto their system....
+<hax[xor]> you also get to fix the inability to handle empty dirs, lack of usability with normal usage, ...
+<runxiyu> yes
+<runxiyu> well
+<runxiyu> hax[xor]: it's also something that i don't think i could program in a month or two
